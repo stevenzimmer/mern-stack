@@ -9,26 +9,18 @@ const passport = require('passport');
 
 // Load Input Validation
 const validateRegisterInput = require('../../validation/register');
+const validateLoginInput = require('../../validation/login');
 
 // Load User Model
 const User = require('../../models/User');
 
 
-//  @route  Get api/users/test
-//  @desc   Tests users route
-//  @access Public
-router.get('/test', (request, response) => {
-
-    return response.json({
-        message: 'Users works'
-    });
-
-});
-
 //  @route  Get api/users/register
 //  @desc   Register User
 //  @access Public
-router.post('/register', (request, response) => {
+router.post(
+    '/register', 
+    ( request, response ) => {
 
         const { errors, isValid } = validateRegisterInput( request.body );
 
@@ -37,142 +29,155 @@ router.post('/register', (request, response) => {
             return response.status(400).json(errors);
         }
 
-        User.findOne({
-            email: request.body.email
-        }).then( ( user ) => {
+        User
+            .findOne({
+                email: request.body.email
 
-            if( user ) {
-                errors.email = "email already exists";
-                return response.status(400).json(errors);
-            } else {
+            })
+            .then( ( user ) => {
 
-                const avatar = gravatar.url( request.body.email, {
-                    s: '200',
-                    r: 'pg',
-                    d: 'mm'
-                });
+                if ( user ) {
+                    errors.email = "email already exists";
+                    return response.status(400).json(errors);
+                } else {
 
-                const newUser = new User({
-                    name: request.body.name,
-                    email: request.body.email,
-                    avatar,
-                    password: request.body.password
-                });
-
-                bcrypt.genSalt(10, (error, salt) => {
-
-                    bcrypt.hash( newUser.password, salt, ( error, hash ) => {
-                    
-                        if( error ) {
-                            console.log(error);
-                        }
-
-                        newUser.password = hash;
-                        
-                        newUser.save().then( ( user ) => {
-                        
-                            response.json( user );
-                        
-                        }).catch( (e) => {
-                        
-                            console.log(e);
-                        
-                        });
-                        
+                    const avatar = gravatar.url( request.body.email, {
+                        s: '200',
+                        r: 'pg',
+                        d: 'mm'
                     });
-                });
-            }
-        });
-});
 
-// Validate login
-const validateLoginInput = require('../../validation/login');
+                    const newUser = new User({
+                        name: request.body.name,
+                        email: request.body.email,
+                        avatar,
+                        password: request.body.password
+                    });
 
+                    bcrypt
+                        .genSalt(10, (error, salt) => {
+
+                            bcrypt
+                                .hash( newUser.password, salt, ( error, hash ) => {
+                        
+                                if( error ) {
+                                    console.log(error);
+                                }
+
+                                newUser.password = hash;
+                                
+                                newUser
+                                    .save()
+                                    .then( ( user ) => {
+                                
+                                        response.json( user );
+                                
+                                    })
+                                    .catch( (e) => {
+                                
+                                        console.log(e);
+                                
+                                    });
+                            
+                            });
+                        });
+                }
+            })
+            .catch( e => {
+                console.log(e);
+            });
+    }
+);
 
 //  @route  Get api/users/login
 //  @desc   login User / Returning Token
 //  @access Public
-router.post('/login', ( request, response ) => {
+router.post(
+    '/login', 
+    ( request, response ) => {
 
-    const { errors, isValid } = validateLoginInput( request.body );
+        const { errors, isValid } = validateLoginInput( request.body );
 
-    // Check validation
-    if ( !isValid ) {
-        return response.status(400).json(errors);
-    }
-
-    const email     = request.body.email;
-    const password  = request.body.password;
-
-    // Find User by email
-    User.findOne({
-        email
-    }).then( ( user ) => {
-
-        console.log( 'user ', user );
-
-        // Check for user
-        if( !user ) {
-            errors.email = "user not found";
-            return response.status(404).json(errors);
+        // Check validation
+        if ( !isValid ) {
+            return response.status(400).json(errors);
         }
 
-        // Check Password
-        bcrypt.compare( password, user.password )
-            .then( ( isMatch ) => {
+        const email     = request.body.email;
+        const password  = request.body.password;
 
-                if( isMatch ) {
+        // Find User by email
+        User
+            .findOne({
+                email
+            })
+            .then( ( user ) => {
 
-                    // User Matched
-
-                    // 
-                    const payload = {
-                        id: user._id,
-                        name: user.name,
-                        avatar: user.avatar
-                    }
-
-                    // Sign Token
-                    jwt.sign( 
-                        payload, 
-                        keys.secretKey, 
-                        {
-                            expiresIn: 3600
-                        }, 
-                        (err, token) => {
-                            if(!err) {
-
-                                response.json({
-                                    success: true,
-                                    token: "Bearer " + token
-                                });
-
-                            }
-                        }
-                    );
-                    
-                } else {
-                    
-                    errors.password = "password incorrect";
-                    response.status(400).json(errors);
-                
+                // Check for user
+                if( !user ) {
+                    errors.email = "user not found";
+                    return response.status(404).json(errors);
                 }
-            }).catch( (e) => {
 
-                console.log('this is a catch ', e);
-            
+                // Check Password
+                bcrypt
+                    .compare( password, user.password )
+                    .then( ( isMatch ) => {
+
+                        if( isMatch ) {
+
+                            // User Matched
+                            const payload = {
+                                id: user._id,
+                                name: user.name,
+                                avatar: user.avatar
+                            }
+
+                            // Sign Token
+                            jwt.sign( 
+                                payload, 
+                                keys.secretKey, 
+                                {
+                                    expiresIn: 3600
+                                }, 
+                                ( err, token ) => {
+                                    if( !err ) {
+                                        
+                                        response.json({
+                                            success: true,
+                                            token: "Bearer " + token
+                                        });
+
+                                        }
+                                    }
+                            );
+                            
+                        } else {
+                            
+                            errors.password = "password incorrect";
+                            response.status(400).json(errors);
+                        
+                        }
+                    })
+                    .catch( (e) => {
+
+                        console.log('this is a catch ', e);
+                    
+                    });
+            })
+            .catch( (e) => {
+
+                console.log( 'this is another catch ', e);
+
             });
-    }).catch( (e) => {
-
-        console.log( 'this is another catch ', e);
-
-    });
-});
+    }
+);
 
 //  @route  Get api/users/current
 //  @desc   Return current user
 //  @access Private
-router.get('/current', 
+router.get(
+    '/current', 
     passport.authenticate('jwt', {
         session: false
     }), 
